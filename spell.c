@@ -1,245 +1,188 @@
-// Implements a spell-checker
+//spell.c
 
-#include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #include "dictionary.h"
-
-// Default dictionary
-//#define DICTIONARY "dictionaries/large"
-#define DICTIONARY "wordlist.txt"
-// define misspelt char array size
-#define MISSPELT_ARRAY 2000
-
-// Counts # of words in dictionary
-
-unsigned int dictsize = 0;
-
-/**
- * Returns number of words in dictionary if loaded else 0 if not yet loaded.
- */
-unsigned int size(void);
-
-/**
- * Unloads dictionary from memory.  Returns true if successful else false.
- */
-bool unload(void);
-node* hashtable[HASH_SIZE];
-//typedef node* hashmap_t;
-int hash_function(const char* word);
+#include <ctype.h>
+#include <string.h>
+//#include <discts.h>
 
 /*
-int main(int argc, char *argv[])
-{
-    // Check for correct number of args
-    if (argc != 2 && argc != 3)
-    {
-        printf("Usage: speller [dictionary] text\n");
-        return 1;
-    }
-    char* text = (argc == 3) ? argv[2] : argv[1];
-    FILE* fp = fopen(text, "r");
-    if (fp == NULL)
-    {
-        printf("Could not open %s.\n", text);
-        unload();
-        return 1;
-    }
-  }
-  */
+Your program should contain at least three functions, a function to load the list of words into the hash map (called load_dictionary), a function to check if a word is correctly spelled (called check_word), and a function called check_words to tie them all together. The parameter to check_words will be a file pointer containing lines of words separated by spaces, punctuation, etc. The function prototypes are as follows1:
+*/
 
-/* already defined hash_function(const char* word) */
-/**
- * Returns number of words in dictionary if loaded else 0 if not yet loaded.
- */
-unsigned int size(void)
-{
-    return dictsize;
-}
-bool unload(void)
-{
-    node* temp = NULL;
-    node* next = NULL;
-    for (int i = 0; i < HASH_SIZE; i++)
-    {
-        temp = hashtable[i];
-        while (temp != NULL)
-        {
-            next = temp->next;
-            free(temp);
-            temp = next;
-        }
-    }
-    // Unload successful
-    return true;
-}
+//int check_words(FILE* fp, hashmap_t hashtable[], char* misspelled[]);
+//bool load_dictionary(const char* dictionary_file, hashmap_t hashtable[]);
+//bool check_word(const char* word, hashmap_t hashtable[]);
 
-int check_words(FILE* fp, hashmap_t hashtable[], char * misspelled[])
-{
-   bool loaded = load_dictionary(DICTIONARY, hashtable);
-   if (!loaded)
-    {
-        printf("Could not load %s.\n", DICTIONARY);
-        return 1;
-    }
 
-    // Prepare to report misspellings
-    printf("\nMISSPELLED WORDS\n\n");
-    // Initialize misspelled[] char array
-    for (int i = 0; i < MISSPELT_ARRAY; i++)
-    {
-        misspelled[i] = NULL;
-    }
-    // prepare to spell-check
-    int index = 0, misspellings = 0, words = 0;
-    char word[LENGTH+1];
-    // spell-check each word in text
-    for (int c = fgetc(fp); c != EOF; c = fgetc(fp))
-    {
-        // allow only alphabetical characters and apostrophes
-        if (isalpha(c) || (c == '\'' && index > 0))
-        {
-            // append character to word
-            word[index] = c;
-            index++;
+extern int hash_function(const char* word);
 
-            // ignore alphabetical strings too long to be words
-            if (index > LENGTH)
-            {
-                // consume remainder of alphabetical string
-                while ((c = fgetc(fp)) != EOF && isalpha(c));
+void stringToLower(char * str) {
+	if (NULL != str) {
+		int len = strlen(str);
+		int pos;
+		for (pos = 0; pos < len; pos++) {
+			str[pos] = tolower(str[pos]);}
+	}
+	}
 
-                // prepare for new word
-                index = 0;
-            }
-        }
+//function to load the list of words into the hash map (called load_dictionary),
+bool load_dictionary(const char* dictionary_file, hashmap_t hashtable[]) {
 
-        // ignore words with numbers (like MS Word can)
-        else if (isdigit(c))
-        {
-            // consume remainder of alphanumeric string
-            while ((c = fgetc(fp)) != EOF && isalnum(c));
+	FILE *wordlist;
+	wordlist = fopen(dictionary_file, "r");
 
-            // prepare for new word
-            index = 0;
-        }
+ 	if(wordlist == NULL)
+  	 {
+      		return false;}
 
-        // we must have found a whole word
-        else if (index > 0)
-        {
-            // terminate current word
-            word[index] = '\0';
+	int i;
+	for (i = 0; i < HASH_SIZE; i++) {
+		hashtable[i] = NULL;}
 
-            // update counter
-            words++;
+	char word_within_tbl[LENGTH + 1];
+	int hashingword;
+	   	while (0 < fscanf(wordlist, "%45s", word_within_tbl)) {	
+		stringToLower(word_within_tbl);
+		hashingword = hash_function(word_within_tbl);
+		hashmap_t newNode = (hashmap_t) malloc(sizeof(node));
+		newNode->next = NULL;
+		strncpy(newNode->word, word_within_tbl, LENGTH);
+				
+		if (NULL == hashtable[hashingword]) {
 
-            // check word's spelling
-            bool misspelledw = !check_word(word, hashtable);
-           // print word if misspelled
-            if (misspelledw)
-            {
-                strncpy(misspelled[misspellings], word, index + 1);
-                misspellings++;
-            }
+		    hashtable[hashingword] = newNode;
+		}	
+		else {
+		    hashmap_t PointingTo = hashtable[hashingword];
+		    hashmap_t WillPointTo = PointingTo->next;
+		    while (NULL != WillPointTo) {
+			PointingTo = WillPointTo;
+			WillPointTo = PointingTo->next;
+		    }
+		    PointingTo->next = newNode;}
+			}
 
-            // prepare for next word
-            index = 0;
-        }
-    }
+	fclose(wordlist);
 
-    // check whether there was an error
-    if (ferror(fp))
-    {
-        fclose(fp);
-        printf("Error reading text.\n");
-        unload();
-        return 1;
-    }
+	return true;}
 
-    // close text
-    fclose(fp);
+//a function to check if a word is correctly spelled
+int check_words(FILE* fp, hashmap_t hashtable[], char * misspelled[]) {
 
-    // determine dictionary's size
-    unsigned int n = size();
+	char * dumpBuffer = NULL;	
+	char *readBuffer = NULL;
+	int incorrectnum = 0;
+	while (0 < fscanf(fp, "%100ms", &readBuffer)) {
 
-    // unload dictionary
-    bool unloaded = unload();
-    // abort if dictionary not unloaded
-    if (!unloaded)
-    {
-        printf("Could not unload dictionary_file.\n");
-        return 1;
-    }
+		if (strlen(readBuffer) == 100) {
+			while (0 < fscanf(fp, "%100ms", &dumpBuffer)) {
+				if (strlen(dumpBuffer) < 100)
+					break;
 
-    // report benchmarks
-    printf("\nWORDS MISSPELLED:     %d\n", misspellings);
-    printf("WORDS IN DICTIONARY:  %d\n", n);
-    printf("WORDS IN TEXT:        %d\n", words);
+				free(dumpBuffer);
+			}
+			free(dumpBuffer);}
+		
+		int rightchar = -1;
+		int location;
+		int leftchar = -1;
+		//char Pointer = 0
 
-    // that's all folks
-    return 0;
+		for (location = 0; location <  strlen(readBuffer); location++) {
+		    if (isalpha(readBuffer[location])) {
+			leftchar = location;
+			break;}
+		}
 
-};
-/**
- * Returns true if word is in dictionary else false.
- */
-bool check_word(const char* word, hashmap_t hashtable[])
-{
-    unsigned spot = hash_function(word);
-    node* crawler = hashtable[spot];
-    // Crawls through hashtable looking for word match
-    while (crawler != NULL)
-    {
-        if (strcmp(word, crawler->word) == 0)
-            return true;
-        crawler = crawler->next;
-    }
-    // No match >> word must be misspelled
-    return false;
-}
-/**
- * Loads dictionary into memory.  Returns true if successful else false.
- */
-bool load_dictionary(const char* dictionary_file, hashmap_t hashtable[])
-{
-    FILE *Dictfile = fopen(dictionary_file, "r");
-    if (Dictfile == NULL)
-    {
-            bool unloaded = unload();
-            // abort if dictionary not unloaded
-            if (!unloaded)
-                printf("Could not unload %s.\n", dictionary_file);
+		for (location = strlen(readBuffer) - 1; location >= 0; location--) {
+		    if (isalpha(readBuffer[location])) {
+			rightchar = location;
+			break;}
+		}
 
-            printf("Could not open %s.\n", dictionary_file);
-            return false;
-    }
+		if (leftchar >= 0) {
+			int overallsize = (rightchar - leftchar) + 1;
 
-    // Initialize hash table
-    for (int i = 0; i < HASH_SIZE; i++)
-    {
-        hashtable[i] = NULL;
-    }
-    // Buffer for a word
-    char word[LENGTH + 1];
+			bool truncated = false;
+			if (overallsize > LENGTH) {
+				overallsize = LENGTH;
+				truncated = true;}
 
-    // Insert words into hash table
-    while (fscanf(Dictfile, "%s", word) != EOF)
-    {
-        dictsize++;
-        node* new_node = malloc(sizeof(node));
-        strncpy(new_node->word, word, LENGTH + 1);
-        new_node->next = NULL;
-        unsigned spot = hash_function(word);
-        new_node->next = hashtable[spot];
-        hashtable[spot] = new_node;
-    }
-    // Close dictionary
-    fclose(Dictfile);
-    // Successful load
+			char * translateBuffer = malloc(LENGTH + 1);
 
-    return true;
+			strncpy(translateBuffer, &readBuffer[leftchar], overallsize);
+			translateBuffer[overallsize] = '\0';
 
-}
+			if (truncated || (!check_word(translateBuffer, hashtable))) {
+			    misspelled[incorrectnum++] = translateBuffer;} 
+			else {
+
+		   	     free(translateBuffer);}
+		}
+
+		free(readBuffer);}
+	
+	return incorrectnum;}
+
+//a function to check if a word is correctly spelled (called check_word),
+bool check_word(const char* word, hashmap_t hashtable[]) {
+
+	if ((NULL == word) || (NULL == hashtable)) {
+	//if ((NULL == word) || (Null == hashmap_t)) {	
+return false;
+	}
+	char lowercase[strlen(word)]; 
+	sprintf(lowercase, "%s", word);
+	stringToLower(lowercase);
+
+	int hash = hash_function(lowercase);
+
+	hashmap_t hashes = hashtable[hash];
+
+	if (NULL == hashes)  {
+		return false;}
+
+	bool match_found = false;
+
+	hashmap_t currentNode = hashes;
+	int equal;
+	while (NULL != currentNode->next) {
+		equal = strncmp(lowercase, currentNode->word, strlen(currentNode->word));
+		if (0 == equal) {
+		 
+		    match_found = true;
+	
+	            break;} 
+		else {
+	
+		}
+		currentNode = currentNode->next;
+	}
+
+	if (!match_found) {
+		equal = strncmp(lowercase, currentNode->word, strlen(currentNode->word));
+		if (0 == equal) {
+	 	   match_found = true;}
+		else {
+		}
+	}
+
+	return match_found;}
+
+/* These function prototypes are provided in the file dictionary.h provided to you. All of the code you write must be in a file called spell.c. This is required for the autograder to correctly grade your code. You should also create a main function to tie it all together, but this does not need to be submitted as part of the assignment.
+
+After finishing your program, you should analyze it using valgrind. You can download Valgrind
+from your distribution’s package manager, or from valgrind.org. Be sure to fix any bugs that you
+discover from the output of Valgrind.
+After you complete the program, you must submit a write-up that explains the following.
+exactly how the program works
+The output of Valgrind
+what bugs you expect may exist in your code
+why those bugs might occur
+what steps you took to mitigate or fix those bugs.
+
+*/
+
+
 

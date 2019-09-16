@@ -1,23 +1,37 @@
-testspell : test_main.o dictionary.o spell.o 
-	gcc -o testspell test_main.o dictionary.o spell.o -lcheck_pic -lpthread -lrt -lm -lsubunit
+default: prog
 
-spell: main.o dictionary.o spell.o
-	gcc -o spell main.o dictionary.o spell.o
+get-deps:
+	# Assuming Debian or Ubuntu here
+	sudo apt-get install -y build-essential check
 
-test_main.o : test_main.c 
-	gcc -c test_main.c
+dictionary.o: dictionary.c
+	gcc -Wall -c dictionary.c dictionary.h
 
-dictionary.o : dictionary.c 
-	gcc -c dictionary.c
+spell.o: spell.c
+	gcc -Wall -c spell.c
 
-spell.o : spell.c 
-	gcc -c spell.c
+test_main.o: test_main.c
+	gcc -Wall -c test_main.c
+test2_main.o: test2_main.c
+	gcc -Wall -c test2_main.c
 
-main.o : main.c
-	gcc -c main.c
+main.o: main.c
+	gcc -Wall -c main.c
 
-clean :
-	rm -f spell main.o dictionary.o spell.o
-	rm -f testspell test_main.o
+test: dictionary.o spell.o test_main.o
+	gcc -Wall -o test_main test_main.o spell.o dictionary.o -lcheck -lm -lrt -lpthread -lsubunit
+	./test_main
 
-all: clean testspell spell
+test2: dictionary.o spell.o test2_main.o
+	gcc -Wall -o test2_main test2_main.o spell.o dictionary.o -lcheck -lm -lrt -lpthread -lsubunit
+	./test2_main
+
+prog: dictionary.o spell.o main.o
+	gcc -Wall -o spell_check dictionary.o spell.o main.o
+
+clean:
+	rm dictionary.o spell.o main.o test_main.o check_spell.o
+
+cleanall:clean
+	rm spell_check
+	
